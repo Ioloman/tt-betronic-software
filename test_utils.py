@@ -3,7 +3,7 @@ import random
 import unittest
 from decimal import Decimal
 from uuid import uuid4
-from models import Line
+from models import Event
 from utils import DummyDB
 
 
@@ -11,16 +11,16 @@ class TestAddDummyDB(unittest.TestCase):
     def test_add(self):
         db = DummyDB()
         uuid = uuid4()
-        line = Line(uid=uuid, deadline=datetime.datetime.now(), coefficient=Decimal(1.5))
-        db.add(line)
-        self.assertEqual(line, db.get_all()[0])
+        event = Event(uid=uuid, deadline=datetime.datetime.now(), coefficient=Decimal(1.5))
+        db.add(event)
+        self.assertEqual(event, db.get_all()[0])
 
 
 class TestDummyDB(unittest.TestCase):
     def setUp(self) -> None:
         n = 50
-        self.lines = {
-            str(uid): Line(
+        self.events = {
+            str(uid): Event(
                 uid=uid,
                 deadline=datetime.datetime.now(),
                 coefficient=Decimal(round(Decimal(random.randint(1, 3) + random.random() + 0.01), 2))
@@ -28,20 +28,20 @@ class TestDummyDB(unittest.TestCase):
             for uid in [uuid4() for _ in range(n)]
         }
         self.db = DummyDB()
-        for line in self.lines.values():
-            self.db.add(line)
+        for event in self.events.values():
+            self.db.add(event)
 
     def test_get(self):
-        for uid, line in self.lines.items():
-            self.assertEqual(self.db.get(uid), line)
+        for uid, event in self.events.items():
+            self.assertEqual(self.db.get(uid), event)
 
     def test_get_all(self):
         all_ = self.db.get_all()
 
-        for line in all_:
-            if line not in self.lines.values():
-                self.assertTrue(False, 'Extra line in db')
+        for event in all_:
+            if event not in self.events.values():
+                self.assertTrue(False, 'Extra event in db')
 
-        for line in self.lines.values():
-            if line not in all_:
-                self.assertTrue(False, 'Line was not added')
+        for event in self.events.values():
+            if event not in all_:
+                self.assertTrue(False, 'Event was not added')

@@ -12,17 +12,17 @@ class HasID(ABC):
     def get_id(self) -> str: ...
 
 
-class LineStatus(IntEnum):
+class EventStatus(IntEnum):
     NOT_FINISHED = 1
     WON = 2  # 1st team won
     LOST = 3  # 1st team lost
 
 
-class Line(BaseModel, HasID):
+class Event(BaseModel, HasID):
     uid: UUID = Field(default_factory=uuid4)
     coefficient: condecimal(decimal_places=2, gt=Decimal(1))
     deadline: datetime.datetime
-    status: LineStatus = LineStatus.NOT_FINISHED
+    status: EventStatus = EventStatus.NOT_FINISHED
 
     def get_id(self) -> str:
         return str(self.uid)
