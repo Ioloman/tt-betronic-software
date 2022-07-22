@@ -45,3 +45,9 @@ class TestDummyDB(unittest.TestCase):
         for event in self.events.values():
             if event not in all_:
                 self.assertTrue(False, 'Event was not added')
+
+    def test_update(self):
+        for uid, event in self.events.items():
+            coef = Decimal(round(Decimal(random.randint(1, 3) + random.random() + 0.01), 2))
+            self.db.update(uid, event.copy(update={'coefficient': coef}))
+            self.assertEqual(self.db.get(uid).coefficient, coef, 'Update test failed')

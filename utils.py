@@ -16,3 +16,11 @@ class DummyDB(list):
                 return elem.copy()
         else:
             return None
+
+    def update(self, id_: str, obj: HasID) -> bool:
+        for i in range(len(self)):
+            if self[i].get_id() == id_:
+                self[i] = obj
+                return True
+        else:
+            return False
