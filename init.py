@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ def init(file: str) -> str:
 
     # configure logger
     logger_name = os.path.split(file)[1].removesuffix('.py')
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     logger.propagate = False
     # create directory
@@ -34,5 +35,12 @@ def init(file: str) -> str:
 
     # add handler to the logger
     logger.addHandler(handler)
+
+    # add handler for stdout
+    print_handler = logging.StreamHandler(sys.stdout)
+    print_handler.setFormatter(formatter)
+    print_handler.setLevel(logging.INFO)
+
+    logger.addHandler(print_handler)
 
     return logger_name
