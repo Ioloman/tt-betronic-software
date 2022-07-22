@@ -8,7 +8,7 @@ from uuid import UUID
 from init import init
 from fastapi import FastAPI, status, HTTPException
 
-from models import Event
+from models import Event, EventPut
 from utils import DummyDB
 
 LOGGER_NAME = init(__file__)
@@ -51,5 +51,24 @@ async def get_event(uid: UUID):
     event = event_db.get(str(uid))
     logger.info(f'got {event=} from {uid=}')
     if event is None:
-        raise HTTPException(status_code=404, detail='Event Not Found')
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Event Not Found')
     return event
+
+
+@app.put('/events', response_model=Event)
+async def update_event(event: EventPut):
+    """
+    Update event
+    """
+    event_stored = event_db.get(str(event.uid))
+    logger.info(f'got {event_stored=} from {event=}')
+    if event_stored is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Event Not Found')
+
+    event_updated = event_stored.copy(update=event.dict(exclude={'uid'}))
+    result = event_db.update(str(event.uid), event_updated)
+    if result:
+        logger.info('updated')
+        return event_updated
+    else:
+        raise HTTPException(status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail='Update failed')

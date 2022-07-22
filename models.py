@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, condecimal
 from abc import ABC, abstractmethod
 
 
-class HasID(ABC):
+class HasID(ABC, BaseModel):
     @abstractmethod
     def get_id(self) -> str: ...
 
@@ -18,11 +18,14 @@ class EventStatus(IntEnum):
     LOST = 3  # 1st team lost
 
 
-class Event(BaseModel, HasID):
+class EventPut(BaseModel):
     uid: UUID = Field(default_factory=uuid4)
     coefficient: condecimal(decimal_places=2, gt=Decimal(1))
-    deadline: datetime.datetime
     status: EventStatus = EventStatus.NOT_FINISHED
+
+
+class Event(EventPut, HasID):
+    deadline: datetime.datetime
 
     def get_id(self) -> str:
         return str(self.uid)
