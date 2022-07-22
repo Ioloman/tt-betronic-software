@@ -61,13 +61,17 @@ async def update_event(uid: UUID, event: EventPut):
     """
     Update event
     """
+    # get event from db
     event_stored = event_db.get(str(uid))
     logger.info(f'got {event_stored=} from {uid=}, update {event}')
     if event_stored is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Event Not Found')
 
+    # update it
     event_updated = event_stored.copy(update=event.dict())
     result = event_db.update(str(uid), event_updated)
+
+    # return result
     if result:
         logger.info('updated')
         return event_updated
