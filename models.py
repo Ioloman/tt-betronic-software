@@ -19,13 +19,16 @@ class EventStatus(IntEnum):
 
 
 class EventPut(BaseModel):
-    uid: UUID = Field(default_factory=uuid4)
     coefficient: condecimal(decimal_places=2, gt=Decimal(1))
     status: EventStatus = EventStatus.NOT_FINISHED
 
 
-class Event(EventPut, HasID):
+class EventCreate(EventPut):
     deadline: datetime.datetime
+
+
+class Event(EventCreate, HasID):
+    uid: UUID = Field(default_factory=uuid4)
 
     def get_id(self) -> str:
         return str(self.uid)

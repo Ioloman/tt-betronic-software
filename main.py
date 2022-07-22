@@ -8,14 +8,14 @@ from uuid import UUID
 from init import init
 from fastapi import FastAPI, status, HTTPException
 
-from models import Event, EventPut
+from models import Event, EventPut, EventCreate
 from utils import DummyDB
 
 LOGGER_NAME = init(__file__)
 logger = logging.getLogger(LOGGER_NAME)
 
 app = FastAPI(
-    title='Event Provider'
+    title='Line Provider'
 )
 
 event_db = DummyDB()
@@ -37,10 +37,11 @@ async def get_events():
 
 
 @app.post('/events', response_model=Event, status_code=status.HTTP_201_CREATED)
-async def create_event(event: Event):
-    event_db.add(event)
-    logger.info(f'added {event=}')
-    return event
+async def create_event(event: EventCreate):
+    event_created = Event(**event.dict())
+    event_db.add(event_created)
+    logger.info(f'added event={event_created}')
+    return event_created
 
 
 @app.get('/events/{uid}', response_model=Event)
@@ -55,18 +56,18 @@ async def get_event(uid: UUID):
     return event
 
 
-@app.put('/events', response_model=Event)
-async def update_event(event: EventPut):
+@app.put('/events/{uid}', response_model=Event)
+async def update_event(uid: UUID, event: EventPut):
     """
     Update event
     """
-    event_stored = event_db.get(str(event.uid))
-    logger.info(f'got {event_stored=} from {event=}')
+    event_stored = event_db.get(str(uid))
+    logger.info(f'got {event_stored=} from {uid=}, update {event}')
     if event_stored is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Event Not Found')
 
-    event_updated = event_stored.copy(update=event.dict(exclude={'uid'}))
-    result = event_db.update(str(event.uid), event_updated)
+    event_updated = event_stored.copy(update=event.dict())
+    result = event_db.update(str(uid), event_updated)
     if result:
         logger.info('updated')
         return event_updated
