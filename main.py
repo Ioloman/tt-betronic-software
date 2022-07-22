@@ -1,4 +1,8 @@
 import logging
+import os
+import datetime
+import random
+from decimal import Decimal
 from uuid import UUID
 
 from init import init
@@ -15,6 +19,12 @@ app = FastAPI(
 )
 
 event_db = DummyDB()
+if os.getenv('APP_ENV') == 'prod':
+    for _ in range(10):
+        event_db.add(Event(
+            coefficient=Decimal(round(Decimal(random.randint(1, 3) + random.random() + 0.01), 2)),
+            deadline=datetime.datetime.now() + datetime.timedelta(minutes=random.randint(5, 30))
+        ))
 
 
 @app.get('/events', response_model=list[Event])
