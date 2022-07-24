@@ -18,6 +18,11 @@ class EventStatus(IntEnum):
     LOST = 3  # 1st team lost
 
 
+class HasStatus(ABC, BaseModel):
+    @abstractmethod
+    def get_status(self) -> EventStatus: ...
+
+
 class EventPut(BaseModel):
     coefficient: condecimal(decimal_places=2, gt=Decimal(1))
     status: EventStatus = EventStatus.NOT_FINISHED
@@ -27,8 +32,16 @@ class EventCreate(EventPut):
     deadline: datetime.datetime
 
 
-class Event(EventCreate, HasID):
+class Event(EventCreate, HasID, HasStatus):
     uid: UUID = Field(default_factory=uuid4)
 
     def get_id(self) -> str:
         return str(self.uid)
+
+    def get_status(self) -> EventStatus:
+        return self.status
+
+
+class EventStatusUpdate(BaseModel):
+    uid: UUID
+    status: EventStatus

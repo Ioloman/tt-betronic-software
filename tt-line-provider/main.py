@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import datetime
@@ -5,11 +6,15 @@ import random
 from decimal import Decimal
 from uuid import UUID
 
-from init import init
-from fastapi import FastAPI, status, HTTPException
+from aio_pika.abc import AbstractRobustConnection, DeliveryMode
 
-from models import Event, EventPut, EventCreate
+from init import init
+from fastapi import FastAPI, status, HTTPException, Query, BackgroundTasks
+
+from models import Event, EventPut, EventCreate, EventStatus, EventStatusUpdate
 from utils import DummyDB
+import aio_pika
+
 
 LOGGER_NAME = init(__file__)
 logger = logging.getLogger(LOGGER_NAME)
@@ -27,13 +32,33 @@ if os.getenv('APP_ENV') == 'prod':
         ))
 
 
+mq_connection = aio_pika.connect_robust(
+    host=os.getenv('RABBIT_HOST'),
+    port=int(os.getenv('RABBIT_PORT')),
+    login=os.getenv('RABBIT_USER'),
+    password=os.getenv('RABBIT_PASS'),
+    timeout=int(os.getenv('RABBIT_TIMEOUT'))
+)
+
+
+@app.on_event('startup')
+async def startup():
+    global mq_connection
+    mq_connection = await mq_connection
+
+
 @app.get('/events', response_model=list[Event])
-async def get_events():
+async def get_events(current: bool = Query(None)):
     """
     Get list of all events
     """
-    logger.info('request to get events list')
-    return event_db.get_all()
+    logger.info(f'request to get events current_mode={current}')
+    events = event_db.get_all()
+    if current:
+        now = datetime.datetime.now()
+        return [event for event in events if event.deadline < now]
+    else:
+        return events
 
 
 @app.post('/events', response_model=Event, status_code=status.HTTP_201_CREATED)
@@ -57,7 +82,7 @@ async def get_event(uid: UUID):
 
 
 @app.put('/events/{uid}', response_model=Event)
-async def update_event(uid: UUID, event: EventPut):
+async def update_event(uid: UUID, event: EventPut, tasks: BackgroundTasks):
     """
     Update event
     """
@@ -71,9 +96,27 @@ async def update_event(uid: UUID, event: EventPut):
     event_updated = event_stored.copy(update=event.dict())
     result = event_db.update(str(uid), event_updated)
 
-    # return result
+    # return result and update bet
     if result:
         logger.info('updated')
+        # create notification task about status update
+        if event_stored.get_status() != event_updated.get_status():
+            logger.info('create task to notify status update')
+            tasks.add_task(notify_status_update, mq_connection, uid, event_updated.get_status())
+
         return event_updated
     else:
         raise HTTPException(status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail='Update failed')
+
+
+async def notify_status_update(connection: AbstractRobustConnection, uid: UUID, status: EventStatus):
+    async with connection:
+        channel = await connection.channel()
+        queue = await channel.declare_queue(os.getenv('RABBIT_QUEUE'), durable=True)
+        await channel.default_exchange.publish(
+            aio_pika.Message(
+                body=EventStatusUpdate(uid=uid, status=status).json().encode(),
+                delivery_mode=DeliveryMode.PERSISTENT
+            ),
+            queue.name
+        )

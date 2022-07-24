@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from fastapi.testclient import TestClient
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
-from main import app
+from main import app, event_db
 from models import EventCreate, Event
 
 
@@ -43,10 +43,10 @@ class TestCreate(unittest.TestCase):
 class TestGetUpdate(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(app)
-        n = 3
+        n = 10
         events = [
             EventCreate(
-                deadline=datetime.datetime.now(),
+                deadline=datetime.datetime.now() + datetime.timedelta(seconds=random.randint(-10, 10)),
                 coefficient=Decimal(round(Decimal(random.randint(1, 3) + random.random() + 0.01), 2))
             )
             for _ in range(n)
@@ -58,6 +58,9 @@ class TestGetUpdate(unittest.TestCase):
                 json=jsonable_encoder(event)
             )
             self.events.append(Event(**response.json()))
+
+    def tearDown(self) -> None:
+        event_db.clear()
 
     def test_get(self):
         event = jsonable_encoder(self.events[0])
@@ -77,6 +80,16 @@ class TestGetUpdate(unittest.TestCase):
         self.assertEqual(len(response_data), len(self.events))
         for event in response_data:
             self.assertIn(Event(**event), self.events)
+
+    def test_get_current(self):
+        now = datetime.datetime.now()
+        response = self.client.get('/events?current=true')
+        response_data = response.json()
+        self.assertIsInstance(response_data, list)
+        events = [event for event in self.events if event.deadline < now]
+        self.assertEqual(len(response_data), len(events))
+        for event in response_data:
+            self.assertIn(Event(**event), events)
 
     def test_update(self):
         event: dict = jsonable_encoder(self.events[0])
