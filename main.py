@@ -1,8 +1,10 @@
+import asyncio
 import datetime
 import os
 import urllib.parse
 
 import httpx
+from aio_pika.connection import make_url
 from aioredis import Redis
 from fastapi import FastAPI, Depends, BackgroundTasks, status, HTTPException
 from sqlalchemy.sql import Select
@@ -10,10 +12,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
 from connections.database import init_db
-from connections.services import RedisHandler
+from connections.services import RedisHandler, RabbitHandler
 from models import Bet, BetCreate, Event
 from connections.database import get_session
-from utils import get_events_cached
+from helpers import get_events_cached
+from utils import rerun_on_exception
 
 app = FastAPI(
     title='Bet Maker'
@@ -23,7 +26,20 @@ app = FastAPI(
 @app.on_event('startup')
 async def startup():
     await init_db()
-    RedisHandler().init(os.getenv('REDIS_URL'))
+    RedisHandler().connect(os.getenv('REDIS_URL'))
+    await RabbitHandler().connect(make_url(
+        host=os.getenv('RABBIT_HOST'),
+        port=int(os.getenv('RABBIT_PORT')),
+        login=os.getenv('RABBIT_USER'),
+        password=os.getenv('RABBIT_PASS'),
+        timeout=int(os.getenv('RABBIT_TIMEOUT'))
+    ))
+
+
+@app.on_event('shutdown')
+async def shutdown():
+    await RedisHandler().disconnect()
+    await RabbitHandler().disconnect()
 
 
 @app.get('/bets', response_model=list[Bet])
