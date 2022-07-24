@@ -6,7 +6,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from init import init
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status, HTTPException, Query
 
 from models import Event, EventPut, EventCreate
 from utils import DummyDB
@@ -28,12 +28,17 @@ if os.getenv('APP_ENV') == 'prod':
 
 
 @app.get('/events', response_model=list[Event])
-async def get_events():
+async def get_events(current: bool = Query(None)):
     """
     Get list of all events
     """
-    logger.info('request to get events list')
-    return event_db.get_all()
+    logger.info(f'request to get events current_mode={current}')
+    events = event_db.get_all()
+    if current:
+        now = datetime.datetime.now()
+        return [event for event in events if event.deadline < now]
+    else:
+        return events
 
 
 @app.post('/events', response_model=Event, status_code=status.HTTP_201_CREATED)
