@@ -1,6 +1,10 @@
+import datetime
 import os
+import urllib.parse
+
+import httpx
 from aioredis import Redis
-from fastapi import FastAPI, Depends, BackgroundTasks
+from fastapi import FastAPI, Depends, BackgroundTasks, status, HTTPException
 from sqlalchemy.sql import Select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
@@ -31,7 +35,15 @@ async def get_bets(session: AsyncSession = Depends(get_session)):
 
 @app.post('/bets', response_model=Bet)
 async def create_bet(bet: BetCreate, session: AsyncSession = Depends(get_session)):
-    bet_created = Bet(**bet.dict(), coefficient=1.5)
+    async with httpx.AsyncClient() as client:  # type: httpx.AsyncClient
+        response = await client.get(urllib.parse.urljoin(os.getenv('EVENTS_API_URL'), f'/events/{bet.event_uid}'))
+    if response.status_code == status.HTTP_404_NOT_FOUND:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='event not found')
+    event = Event(**response.json())
+    if event.deadline < datetime.datetime.now():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='event deadline passed')
+
+    bet_created = Bet(**bet.dict(), coefficient=event.coefficient, status=event.status)
     session.add(bet_created)
     await session.commit()
     await session.refresh(bet_created)
