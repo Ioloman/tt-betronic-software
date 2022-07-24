@@ -86,7 +86,7 @@ class TestGetUpdate(unittest.TestCase):
         response = self.client.get('/events?current=true')
         response_data = response.json()
         self.assertIsInstance(response_data, list)
-        events = [event for event in self.events if event.deadline < now]
+        events = [event for event in self.events if event.deadline > now]
         self.assertEqual(len(response_data), len(events))
         for event in response_data:
             self.assertIn(Event(**event), events)

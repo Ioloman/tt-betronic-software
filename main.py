@@ -60,7 +60,7 @@ async def get_events(current: bool = Query(None)):
     events = event_db.get_all()
     if current:
         now = datetime.datetime.now()
-        return [event for event in events if event.deadline < now]
+        return [event for event in events if event.deadline > now]
     else:
         return events
 
