@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import datetime
@@ -6,13 +5,14 @@ import random
 from decimal import Decimal
 from uuid import UUID
 
-from aio_pika.abc import AbstractRobustConnection, DeliveryMode
+from aio_pika.abc import DeliveryMode, AbstractRobustChannel
+from aio_pika.connection import make_url
 
 from init import init
-from fastapi import FastAPI, status, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, status, HTTPException, Query, BackgroundTasks, Depends
 
 from models import Event, EventPut, EventCreate, EventStatus, EventStatusUpdate
-from utils import DummyDB
+from utils import DummyDB, RabbitHandler
 import aio_pika
 
 
@@ -32,19 +32,20 @@ if os.getenv('APP_ENV') == 'prod':
         ))
 
 
-mq_connection = aio_pika.connect_robust(
-    host=os.getenv('RABBIT_HOST'),
-    port=int(os.getenv('RABBIT_PORT')),
-    login=os.getenv('RABBIT_USER'),
-    password=os.getenv('RABBIT_PASS'),
-    timeout=int(os.getenv('RABBIT_TIMEOUT'))
-)
-
-
 @app.on_event('startup')
 async def startup():
-    global mq_connection
-    mq_connection = await mq_connection
+    await RabbitHandler().connect(make_url(
+        host=os.getenv('RABBIT_HOST'),
+        port=int(os.getenv('RABBIT_PORT')),
+        login=os.getenv('RABBIT_USER'),
+        password=os.getenv('RABBIT_PASS'),
+        timeout=int(os.getenv('RABBIT_TIMEOUT'))
+    ))
+
+
+@app.on_event('shutdown')
+async def shutdown():
+    await RabbitHandler().disconnect()
 
 
 @app.get('/events', response_model=list[Event])
@@ -56,7 +57,7 @@ async def get_events(current: bool = Query(None)):
     events = event_db.get_all()
     if current:
         now = datetime.datetime.now()
-        return [event for event in events if event.deadline < now]
+        return [event for event in events if event.deadline > now]
     else:
         return events
 
@@ -82,7 +83,12 @@ async def get_event(uid: UUID):
 
 
 @app.put('/events/{uid}', response_model=Event)
-async def update_event(uid: UUID, event: EventPut, tasks: BackgroundTasks):
+async def update_event(
+    uid: UUID,
+    event: EventPut,
+    tasks: BackgroundTasks,
+    mq_channel: AbstractRobustChannel = Depends(RabbitHandler().get_conn)
+):
     """
     Update event
     """
@@ -102,21 +108,19 @@ async def update_event(uid: UUID, event: EventPut, tasks: BackgroundTasks):
         # create notification task about status update
         if event_stored.get_status() != event_updated.get_status():
             logger.info('create task to notify status update')
-            tasks.add_task(notify_status_update, mq_connection, uid, event_updated.get_status())
+            tasks.add_task(notify_status_update, mq_channel, uid, event_updated.get_status())
 
         return event_updated
     else:
         raise HTTPException(status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail='Update failed')
 
 
-async def notify_status_update(connection: AbstractRobustConnection, uid: UUID, status: EventStatus):
-    async with connection:
-        channel = await connection.channel()
-        queue = await channel.declare_queue(os.getenv('RABBIT_QUEUE'), durable=True)
-        await channel.default_exchange.publish(
-            aio_pika.Message(
-                body=EventStatusUpdate(uid=uid, status=status).json().encode(),
-                delivery_mode=DeliveryMode.PERSISTENT
-            ),
-            queue.name
-        )
+async def notify_status_update(channel: AbstractRobustChannel, uid: UUID, status: EventStatus):
+    queue = await channel.declare_queue(os.getenv('RABBIT_QUEUE'), durable=True)
+    await channel.default_exchange.publish(
+        aio_pika.Message(
+            body=EventStatusUpdate(uid=uid, status=status).json().encode(),
+            delivery_mode=DeliveryMode.PERSISTENT
+        ),
+        queue.name
+    )

@@ -86,26 +86,7 @@ class TestGetUpdate(unittest.TestCase):
         response = self.client.get('/events?current=true')
         response_data = response.json()
         self.assertIsInstance(response_data, list)
-        events = [event for event in self.events if event.deadline < now]
+        events = [event for event in self.events if event.deadline > now]
         self.assertEqual(len(response_data), len(events))
         for event in response_data:
             self.assertIn(Event(**event), events)
-
-    def test_update(self):
-        event: dict = jsonable_encoder(self.events[0])
-        event_update = event.copy()
-        event_update.pop('uid')
-        event_update.pop('deadline')
-        event_update['status'] = 2
-        event_update['coefficient'] = 1.5
-
-        response = self.client.put(
-            f"/events/{event['uid']}",
-            json=event_update
-        )
-        self.assertEqual(status.HTTP_200_OK, response.status_code)
-        self.assertEqual(response.json(), event | event_update)
-
-        response_get = self.client.get(f"/events/{event['uid']}")
-        self.assertEqual(status.HTTP_200_OK, response_get.status_code)
-        self.assertEqual(response_get.json(), event | event_update)
