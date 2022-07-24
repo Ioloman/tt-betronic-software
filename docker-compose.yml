@@ -12,6 +12,12 @@ services:
     - ./init_postgres.sql:/docker-entrypoint-initdb.d/init_postgres.sql
     ports:
     - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "db_prod" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
 
   redis:
     image: redis:7
@@ -20,6 +26,8 @@ services:
     volumes:
       - ./redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: [ "CMD", "redis-cli","ping" ]
 
   rabbitmq:
     image: rabbitmq:3.9-management
@@ -29,6 +37,39 @@ services:
     ports:
       - "15672:15672"
       - "5672:5672"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:15672" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  line-provider:
+    build:
+      context: tt-line-provider/
+    ports:
+      - "8000:80"
+    depends_on:
+      - rabbitmq
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80/docs" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    env_file:
+      - tt-line-provider/.env.example
+
+  bet-maker:
+    build:
+      context: tt-bet-maker
+    ports:
+      - "8001:80"
+    depends_on:
+      - rabbitmq
+      - postgres
+      - redis
+      - line-provider
+    env_file:
+      - tt-bet-maker/.env.example
 
 volumes:
   postgres:
