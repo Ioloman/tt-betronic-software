@@ -10,6 +10,7 @@ python-dotenv = "*"
 httpx = "*"
 aio-pika = "*"
 aioredis = "*"
+SQLAlchemy = "*"
 databases = {extras = ["asyncpg"], version = "*"}
 alembic = "*"
 sqlmodel = "*"
