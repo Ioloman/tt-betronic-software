@@ -4,7 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
 from connections.database import init_db
-from models import Bet
+from models import Bet, BetCreate
 from connections.database import get_session
 
 
@@ -26,11 +26,12 @@ async def get_bets(session: AsyncSession = Depends(get_session)):
 
 
 @app.post('/bets', response_model=Bet)
-async def create_bet(bet: Bet, session: AsyncSession = Depends(get_session)):
-    session.add(bet)
+async def create_bet(bet: BetCreate, session: AsyncSession = Depends(get_session)):
+    bet_created = Bet(**bet.dict(), coefficient=1.5)
+    session.add(bet_created)
     await session.commit()
-    await session.refresh(bet)
-    return bet
+    await session.refresh(bet_created)
+    return bet_created
 
 if __name__ == '__main__':
     import uvicorn
