@@ -6,13 +6,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def init_dotenv():
+    load_dotenv('.env')
+
+
 def init() -> None:
     """
     Init .env and logger
     :param file: filename to use to configure logger
     :return:
     """
-    load_dotenv('.env')
+    init_dotenv()
 
     # configure logger
     logger_name = os.getenv('LOGGER_NAME')

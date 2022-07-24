@@ -25,6 +25,13 @@ async def get_bets(session: AsyncSession = Depends(get_session)):
     return result
 
 
+@app.post('/bets', response_model=Bet)
+async def create_bet(bet: Bet, session: AsyncSession = Depends(get_session)):
+    session.add(bet)
+    await session.commit()
+    await session.refresh(bet)
+    return bet
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(app)
