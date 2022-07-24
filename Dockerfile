@@ -3,6 +3,7 @@ FROM python:3.10
 WORKDIR /usr/src/tt-bet-maker
 
 COPY . .
+COPY .env.example .env
 
 RUN pip install pipenv
 RUN pipenv install
