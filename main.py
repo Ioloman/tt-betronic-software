@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import datetime
@@ -45,6 +44,11 @@ mq_connection = aio_pika.connect_robust(
 async def startup():
     global mq_connection
     mq_connection = await mq_connection
+
+
+@app.on_event('shutdown')
+async def shutdown():
+    await mq_connection.close()
 
 
 @app.get('/events', response_model=list[Event])
@@ -110,13 +114,12 @@ async def update_event(uid: UUID, event: EventPut, tasks: BackgroundTasks):
 
 
 async def notify_status_update(connection: AbstractRobustConnection, uid: UUID, status: EventStatus):
-    async with connection:
-        channel = await connection.channel()
-        queue = await channel.declare_queue(os.getenv('RABBIT_QUEUE'), durable=True)
-        await channel.default_exchange.publish(
-            aio_pika.Message(
-                body=EventStatusUpdate(uid=uid, status=status).json().encode(),
-                delivery_mode=DeliveryMode.PERSISTENT
-            ),
-            queue.name
-        )
+    channel = await connection.channel()
+    queue = await channel.declare_queue(os.getenv('RABBIT_QUEUE'), durable=True)
+    await channel.default_exchange.publish(
+        aio_pika.Message(
+            body=EventStatusUpdate(uid=uid, status=status).json().encode(),
+            delivery_mode=DeliveryMode.PERSISTENT
+        ),
+        queue.name
+    )
