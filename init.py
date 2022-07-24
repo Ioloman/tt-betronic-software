@@ -12,7 +12,7 @@ def init() -> None:
     :param file: filename to use to configure logger
     :return:
     """
-    load_dotenv('../.env')
+    load_dotenv('.env')
 
     # configure logger
     logger_name = os.getenv('LOGGER_NAME')
