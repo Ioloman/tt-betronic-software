@@ -47,7 +47,7 @@ services:
     build:
       context: tt-line-provider/
     ports:
-      - "8000:80"
+      - "8005:80"
     depends_on:
       - rabbitmq
     healthcheck:
@@ -62,7 +62,7 @@ services:
     build:
       context: tt-bet-maker
     ports:
-      - "8001:80"
+      - "8006:80"
     depends_on:
       - rabbitmq
       - postgres
