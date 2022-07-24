@@ -15,8 +15,7 @@ from connections.database import init_db
 from connections.services import RedisHandler, RabbitHandler
 from models import Bet, BetCreate, Event
 from connections.database import get_session
-from helpers import get_events_cached
-from utils import rerun_on_exception
+from helpers import get_events_cached, update_bet
 
 app = FastAPI(
     title='Bet Maker'
@@ -27,13 +26,18 @@ app = FastAPI(
 async def startup():
     await init_db()
     RedisHandler().connect(os.getenv('REDIS_URL'))
-    await RabbitHandler().connect(make_url(
+    rabbit = RabbitHandler()
+    await rabbit.connect(make_url(
         host=os.getenv('RABBIT_HOST'),
         port=int(os.getenv('RABBIT_PORT')),
         login=os.getenv('RABBIT_USER'),
         password=os.getenv('RABBIT_PASS'),
         timeout=int(os.getenv('RABBIT_TIMEOUT'))
     ))
+
+    channel = await rabbit.get_conn()
+    queue = await channel.declare_queue(os.getenv('RABBIT_QUEUE'), durable=True)
+    await queue.consume(update_bet)
 
 
 @app.on_event('shutdown')

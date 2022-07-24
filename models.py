@@ -30,3 +30,8 @@ class Event(BaseModel):
     deadline: datetime.datetime
     coefficient: condecimal(decimal_places=2, gt=Decimal(1))
     status: EventStatus
+
+
+class EventStatusUpdate(BaseModel):
+    uid: UUID
+    status: EventStatus

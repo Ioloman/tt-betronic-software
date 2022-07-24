@@ -3,8 +3,15 @@ import os
 import urllib.parse
 
 import httpx
+from aio_pika.abc import AbstractIncomingMessage
 from aioredis import Redis
 from fastapi import BackgroundTasks
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from contextlib import asynccontextmanager
+
+from connections.database import get_session
+from models import EventStatusUpdate, Bet
 
 
 async def cache_data(redis: Redis, key: str, data: str | bytes, ex: int):
@@ -24,3 +31,17 @@ async def get_events_cached(redis: Redis, tasks: BackgroundTasks) -> dict:
 
     return data
 
+
+async def update_bet(message: AbstractIncomingMessage) -> None:
+    event = EventStatusUpdate(**json.loads(message.body))
+
+    get_session_ = asynccontextmanager(get_session)
+    async with get_session_() as session:  # type: AsyncSession
+        expr = select(Bet).where(Bet.event_uid == event.uid)
+        bets = (await session.exec(expr)).all()
+        for bet in bets:
+            bet.status = event.status
+            session.add(bet)
+        await session.commit()
+    await message.ack()
+            
