@@ -44,6 +44,17 @@ class SingletonMeta(type):
 
 
 class RabbitHandler(metaclass=SingletonMeta):
+    """
+    Singleton class to maintain single (or how many necessary) connection
+    and access it from anywhere.
+    Usage:
+    await RabbitHandler().connect(url)
+    ...
+    await RabbitHandler().get_conn() to acquire channel
+    ...
+    await RabbitHandler().disconnect()
+    """
+
     url: URL = None
 
     def __init__(self):
