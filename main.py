@@ -1,6 +1,7 @@
 import datetime
 import os
 import urllib.parse
+from uuid import UUID
 
 import httpx
 from aio_pika.connection import make_url
@@ -56,6 +57,17 @@ async def get_bets(session: AsyncSession = Depends(get_session)):
     expr: Select = select(Bet)
     result = (await session.exec(expr)).all()
     return result
+
+
+@app.get('/bets/{uid}', response_model=Bet)
+async def get_bet(uid: UUID, session: AsyncSession = Depends(get_session)):
+    """
+    Get a bet by UUID
+    """
+    bet = await session.get(Bet, uid)
+    if not bet:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bet not found by this UUID")
+    return bet
 
 
 @app.post('/bets', response_model=Bet, status_code=status.HTTP_201_CREATED)
