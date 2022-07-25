@@ -18,6 +18,17 @@ class SingletonMeta(type):
 
 
 class RedisHandler(metaclass=SingletonMeta):
+    """
+    Singleton class to maintain single (or how many necessary) connection
+    and access it from anywhere.
+    Usage:
+    await RedisHandler().connect(url)
+    ...
+    Use RedisHandler().get_conn to create context manager to acquire connections
+    ...
+    await RedisHandler().disconnect()
+    """
+
     url: str = None
 
     def __init__(self):
@@ -37,6 +48,17 @@ class RedisHandler(metaclass=SingletonMeta):
 
 
 class RabbitHandler(metaclass=SingletonMeta):
+    """
+    Singleton class to maintain single (or how many necessary) connection
+    and access it from anywhere.
+    Usage:
+    await RabbitHandler().connect(url)
+    ...
+    await RabbitHandler().get_conn() to acquire channel
+    ...
+    await RabbitHandler().disconnect()
+    """
+
     url: URL = None
 
     def __init__(self):
