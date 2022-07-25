@@ -55,15 +55,24 @@ async def get_events_cached(redis: Redis, tasks: BackgroundTasks) -> list[dict]:
 
 
 async def update_bet(message: AbstractIncomingMessage) -> None:
+    """
+    Handler of message with event's status update from RabbitMQ
+    """
+    # decode and validate event
     event = EventStatusUpdate(**json.loads(message.body))
 
+    # turn dependency for SQLAlchemy session into async context manager to use
     get_session_ = asynccontextmanager(get_session)
     async with get_session_() as session:  # type: AsyncSession
+        # get Bets made on this event
         expr = select(Bet).where(Bet.event_uid == event.uid)
         bets = (await session.exec(expr)).all()
+        # update Bets
         for bet in bets:
             bet.status = event.status
             session.add(bet)
         await session.commit()
+    # acknowledgement for RabbitMQ as it is desired to restore message
+    # if it was not processed successfully
     await message.ack()
             

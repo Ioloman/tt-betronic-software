@@ -23,6 +23,9 @@ async def init_db():
 
 
 async def get_session() -> AsyncSession:
+    """
+    Dependency for injection into handlers that provides SQLAlchemy session
+    """
     async_session = sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
