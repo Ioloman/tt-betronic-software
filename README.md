@@ -4,9 +4,11 @@
  - [tt-bet-maker](https://github.com/Ioloman/tt-bet-maker)
  - [tt-line-provider](https://github.com/Ioloman/tt-line-provider)
 
-Запуск (времени не хватило добавить `wait-for-it.sh`):
-- `docker-compose up -d postgres redis rabbitmq`
-- `docker-compose up -d line-provider bet-maker`
+Запуск:
+- `[sudo] bash startup.sh`
+
+Остановка:
+- `[sudo] bash shutdown.sh`
 
 -------------
 
@@ -15,6 +17,6 @@
 
 ------------------
 
-P. S. Также у сервиса bet-maker отсутствуют комментарии и тесты, 
+P. S. Также у сервиса bet-maker отсутствуют тесты, 
 так как заканчивал в спешке.
-Добавлю по возможности как можно быстрее. (может быть это никто и не увидит)
+Добавлю по возможности как можно быстрее.
